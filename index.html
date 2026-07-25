@@ -93,6 +93,15 @@
   .success-box .value { font-size: 14px; color: var(--pos); font-weight: 600; }
 
   .footnote { font-size: 11.5px; color: var(--muted); margin-top: 22px; line-height: 1.6; }
+
+  .pair-pills { display: flex; gap: 7px; flex-wrap: wrap; }
+  .pair-pill {
+    font-family: inherit; font-size: 12.5px; font-weight: 600; padding: 9px 16px;
+    border-radius: 7px; cursor: pointer; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--muted); transition: all 0.12s;
+  }
+  .pair-pill:hover { border-color: var(--accent); color: var(--text); }
+  .pair-pill.active { background: var(--accent); border-color: var(--accent); color: #1a1206; }
   .footnote a { color: var(--accent); text-decoration: none; }
   .footnote a:hover { text-decoration: underline; }
 
@@ -1123,17 +1132,28 @@ function renderSetupHtml() {
     </div>
     <div class="setup-panel" id="setupPanel">
       <h3 style="margin:0 0 16px 0;font-size:15px;color:var(--text);text-transform:none;letter-spacing:0;">Configure &amp; start</h3>
+      <div class="field" style="margin-bottom:18px;">
+        <label>Pair</label>
+        <div class="pair-pills" id="pairPills">
+          <button type="button" class="pair-pill" data-id="1">BTC</button>
+          <button type="button" class="pair-pill" data-id="10">MON</button>
+          <button type="button" class="pair-pill" data-id="20">ETH</button>
+          <button type="button" class="pair-pill active" data-id="31">SOL</button>
+          <button type="button" class="pair-pill" data-id="40">HYPE</button>
+          <button type="button" class="pair-pill" data-id="50">ZEC</button>
+        </div>
+      </div>
       <div class="setup-grid">
-        <div class="field"><label>Market ID</label><input type="number" id="cfgMarketId" value="31"></div>
         <div class="field"><label>Order Size (USD)</label><input type="number" id="cfgOrderSizeUsd" value="100"></div>
         <div class="field"><label>Spread BPS</label><input type="number" step="0.01" id="cfgSpreadBps" value="0.15"></div>
         <div class="field"><label>Requote BPS</label><input type="number" step="0.01" id="cfgRequoteBps" value="0.02"></div>
         <div class="field"><label>Leverage</label><input type="number" id="cfgLeverage" value="5"></div>
         <div class="field"><label>Refresh (ms)</label><input type="number" id="cfgRefreshMs" value="12000"></div>
       </div>
+      <input type="hidden" id="cfgMarketId" value="31">
       <div class="footnote" id="presetHint" style="margin-bottom:14px;"></div>
       <button class="btn" id="startBotBtn">Start Bot</button>
-      <div class="footnote" style="margin-top:14px;">Mainnet market IDs (confirmed live): BTC=1, MON=10, ETH=20, SOL=31, HYPE=40, ZEC=50. Spread/requote/leverage/refresh auto-fill from a preset when available — Order Size always stays as you set it.</div>
+      <div class="footnote" style="margin-top:14px;">Spread/requote/leverage/refresh auto-fill from a preset when one exists for the selected pair — Order Size always stays as you set it.</div>
     </div>
     <div id="liveArea" style="display:none;"></div>
     <div class="footnote" style="margin-top:24px; text-align:center;">For whitelist access, contact <a href="https://x.com/Mrbreadsmith" target="_blank" rel="noopener">@Mrbreadsmith on X</a> or <a href="https://t.me/Mrbreadsmith" target="_blank" rel="noopener">Telegram</a>.</div>
@@ -1149,9 +1169,16 @@ async function launchDashboard() {
   wrap.innerHTML = renderSetupHtml();
   document.getElementById('startBotBtn').addEventListener('click', startBot);
 
-  const marketIdInput = document.getElementById('cfgMarketId');
-  marketIdInput.addEventListener('change', () => applyPairPresetToForm(Number(marketIdInput.value)));
-  applyPairPresetToForm(Number(marketIdInput.value)); // apply for whatever market is selected by default
+  document.querySelectorAll('.pair-pill').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.pair-pill').forEach((p) => p.classList.remove('active'));
+      pill.classList.add('active');
+      const marketId = Number(pill.dataset.id);
+      document.getElementById('cfgMarketId').value = marketId;
+      applyPairPresetToForm(marketId);
+    });
+  });
+  applyPairPresetToForm(Number(document.getElementById('cfgMarketId').value)); // apply for whatever's selected by default
 }
 
 window.addEventListener('beforeunload', (e) => {
