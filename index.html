@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Perpl Market Maker — Connect</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #12161f;
+    --panel-2: #171c27;
+    --line: #232838;
+    --text: #e6e9ef;
+    --muted: #7c8494;
+    --accent: #e8a33d;
+    --pos: #3ecf8e;
+    --neg: #f2545b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mono { font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+  .card {
+    width: 420px; max-width: 92vw;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 36px 32px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+  .brand .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+  }
+  .brand h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: 0.01em; }
+
+  h2 { font-size: 20px; font-weight: 600; margin: 0 0 8px 0; }
+  p.sub { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 0 0 24px 0; }
+
+  .btn {
+    width: 100%; font-family: inherit; font-size: 14px; font-weight: 600;
+    padding: 13px; border-radius: 9px; cursor: pointer; border: 1px solid var(--accent);
+    background: var(--accent); color: #1a1206; transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.92; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn.secondary {
+    background: transparent; color: var(--text); border-color: var(--line); margin-top: 10px;
+  }
+  .btn.secondary:hover { border-color: var(--accent); opacity: 1; }
+
+  .status-row {
+    display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted);
+    padding: 10px 0;
+  }
+  .spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--line); border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .addr-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 12px; font-size: 13px; margin-bottom: 20px;
+  }
+  .addr-chip .dot-live {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--pos);
+  }
+
+  .error-box {
+    background: rgba(242,84,91,0.1); border: 1px solid rgba(242,84,91,0.3);
+    border-radius: 9px; padding: 12px 14px; font-size: 13px; color: var(--neg);
+    margin-bottom: 18px; line-height: 1.5;
+  }
+  .success-box {
+    background: rgba(62,207,142,0.1); border: 1px solid rgba(62,207,142,0.3);
+    border-radius: 9px; padding: 14px 16px; margin-bottom: 18px;
+  }
+  .success-box .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 4px; }
+  .success-box .value { font-size: 14px; color: var(--pos); font-weight: 600; }
+
+  .footnote { font-size: 11.5px; color: var(--muted); margin-top: 22px; line-height: 1.6; }
+  .footnote a { color: var(--accent); text-decoration: none; }
+  .footnote a:hover { text-decoration: underline; }
+
+  .stage-note {
+    margin-top: 20px; padding: 14px; background: var(--panel); border: 1px dashed var(--line);
+    border-radius: 9px; font-size: 12.5px; color: var(--muted); line-height: 1.5;
+  }
+
+  /* ── Dashboard (post-auth trading view) ─────────────────────────── */
+  body.dashboard-mode { display: block; align-items: initial; justify-content: initial; }
+  .dash-wrap { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+  .dash-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+  }
+  .dash-header .brand { margin-bottom: 0; }
+  .dash-header .meta { display: flex; align-items: center; gap: 14px; font-size: 12.5px; color: var(--muted); }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--muted);
+    transition: background 0.2s;
+  }
+  .live-dot.live { background: var(--pos); box-shadow: 0 0 0 0 rgba(62,207,142,0.5); animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(62,207,142,0.45); }
+    70% { box-shadow: 0 0 0 7px rgba(62,207,142,0); }
+    100% { box-shadow: 0 0 0 0 rgba(62,207,142,0); }
+  }
+
+  .setup-panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 24px; margin-bottom: 20px;
+  }
+  .setup-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 18px;
+  }
+  .field label {
+    display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .field input, .field select {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px;
+    color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 9px 10px;
+    box-sizing: border-box;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .stat-card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 13px 15px;
+  }
+  .stat-card .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; }
+  .stat-card .value { font-size: 18px; font-weight: 600; }
+  .stat-card .value.pos { color: var(--pos); }
+  .stat-card .value.neg { color: var(--neg); }
+  .stat-card .sub { font-size: 10.5px; color: var(--muted); margin-top: 3px; }
+
+  .orders-row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .order-box {
+    flex: 1; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px;
+    background: var(--panel);
+  }
+  .order-box .side { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .order-box.bid .side { color: var(--pos); }
+  .order-box.ask .side { color: var(--neg); }
+  .order-box .px { font-size: 15px; font-weight: 600; margin-top: 3px; }
+
+  .panel-block {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; margin-bottom: 14px;
+  }
+  .panel-block h3 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+    margin: 0 0 12px 0; font-weight: 600;
+  }
+  table.trades { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.trades th {
+    text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--muted); font-weight: 600; padding: 5px 8px; border-bottom: 1px solid var(--line);
+  }
+  table.trades td { padding: 6px 8px; border-bottom: 1px solid #1a1f2b; }
+  .side-buy { color: var(--pos); font-weight: 600; }
+  .side-sell { color: var(--neg); font-weight: 600; }
+
+  .log-box {
+    background: #0a0d13; border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; font-size: 11.5px; font-family: 'JetBrains Mono', monospace;
+    max-height: 160px; overflow-y: auto; color: var(--muted); line-height: 1.6;
+  }
+  .log-box .err { color: var(--neg); }
+  .log-box .ok { color: var(--pos); }
+  .log-box .warn { color: var(--accent); }
+
+  .controls-row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .btn.small { width: auto; padding: 9px 18px; font-size: 13px; }
+  .btn.danger { border-color: var(--neg); background: transparent; color: var(--neg); }
+  .btn.danger:hover { background: var(--neg); color: #1a0606; }
+</style>
+</head>
+<body>
+
+<div class="card" id="authCard">
+  <div class="brand">
+    <div class="dot"></div>
+    <h1>Perpl Market Maker</h1>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<div class="dash-wrap" id="dashWrap" style="display:none;"></div>
+
+<script>
+const $content = document.getElementById('content');
+let state = { step: 'idle', address: null, error: null };
+
+function short(addr) { return addr.slice(0, 6) + '…' + addr.slice(-4); }
+
+function render() {
+  if (state.step === 'idle') {
+    $content.innerHTML = `
+      <h2>Connect to get started</h2>
+      <p class="sub">Connect your wallet to check access and run the market maker yourself — right in this browser, using your own wallet. Nothing here ever touches your funds or your keys.</p>
+      <button class="btn" id="connectBtn">Connect Wallet</button>
+    `;
+    document.getElementById('connectBtn').addEventListener('click', connectWallet);
+  }
+
+  else if (state.step === 'connecting') {
+    $content.innerHTML = `
+      <h2>Connect to get started</h2>
+      <div class="status-row"><div class="spinner"></div> Waiting for wallet approval…</div>
+    `;
+  }
+
+  else if (state.step === 'checking-whitelist') {
+    $content.innerHTML = `
+      <div class="addr-chip"><span class="dot-live"></span> <span class="mono">${short(state.address)}</span></div>
+      <div class="status-row"><div class="spinner"></div> Checking access…</div>
+    `;
+  }
+
+  else if (state.step === 'not-whitelisted') {
+    $content.innerHTML = `
+      <div class="addr-chip"><span class="dot-live" style="background:var(--neg)"></span> <span class="mono">${short(state.address)}</span></div>
+      <h2>Not approved yet</h2>
+      <p class="sub">This wallet isn't on the access list. Reach out for an invite, or try a different wallet.</p>
+      <button class="btn secondary" id="retryBtn">Try a different wallet</button>
+    `;
+    document.getElementById('retryBtn').addEventListener('click', reset);
+  }
+
+  else if (state.step === 'ready-to-sign') {
+    $content.innerHTML = `
+      <div class="addr-chip"><span class="dot-live"></span> <span class="mono">${short(state.address)}</span></div>
+      <h2>You're approved</h2>
+      <p class="sub">Sign a message with your wallet to authenticate with Perpl. This is a free signature — it never sends a transaction or costs gas.</p>
+      <button class="btn" id="signBtn">Sign & Continue</button>
+    `;
+    document.getElementById('signBtn').addEventListener('click', () => signAndAuthenticate(state.address));
+  }
+
+  else if (state.step === 'authenticating') {
+    $content.innerHTML = `
+      <div class="addr-chip"><span class="dot-live"></span> <span class="mono">${short(state.address)}</span></div>
+      <div class="status-row"><div class="spinner"></div> Authenticating with Perpl…</div>
+    `;
+  }
+
+  else if (state.step === 'success') {
+    $content.innerHTML = `
+      <div class="success-box">
+        <div class="label">Authenticated</div>
+        <div class="value mono">${short(state.address)} ✓</div>
+      </div>
+      <h2>You're all set</h2>
+      <p class="sub">Wallet connected and authenticated with Perpl. Continue to set up and run the bot — it runs entirely in this browser tab.</p>
+      <button class="btn" id="continueBtn">Continue to Dashboard</button>
+    `;
+    document.getElementById('continueBtn').addEventListener('click', launchDashboard);
+  }
+
+  if (state.error) {
+    const errBox = document.createElement('div');
+    errBox.className = 'error-box';
+    errBox.textContent = state.error;
+    $content.prepend(errBox);
+  }
+
+  const footnote = document.createElement('div');
+  footnote.className = 'footnote';
+  footnote.innerHTML = `Non-custodial — this site never sees your private key or holds your funds. Trading happens directly between your wallet and Perpl.`;
+  $content.appendChild(footnote);
+}
+
+function reset() {
+  state = { step: 'idle', address: null, error: null };
+  render();
+}
+
+async function connectWallet() {
+  state.error = null;
+  if (!window.ethereum) {
+    state.error = 'No wallet found. Install MetaMask (or another browser wallet extension) and reload this page.';
+    render();
+    return;
+  }
+  state.step = 'connecting';
+  render();
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    if (!accounts || accounts.length === 0) throw new Error('No account returned from wallet.');
+    state.address = accounts[0];
+    state.step = 'checking-whitelist';
+    render();
+    await checkWhitelist(state.address);
+  } catch (err) {
+    state.step = 'idle';
+    state.error = err.code === 4001 ? 'Connection request was rejected.' : (err.message || 'Failed to connect wallet.');
+    render();
+  }
+}
+
+async function checkWhitelist(address) {
+  try {
+    const res = await fetch(`/api/check-whitelist?address=${address}`);
+    const data = await res.json();
+    state.step = data.whitelisted ? 'ready-to-sign' : 'not-whitelisted';
+    render();
+  } catch (err) {
+    state.step = 'idle';
+    state.error = 'Could not check access right now. Try again in a moment.';
+    render();
+  }
+}
+
+// Tries calling Perpl directly from the browser first (so the browser's
+// own cookie jar for app.perpl.xyz picks up any session cookie
+// naturally); falls back to this server's proxy only if that's blocked
+// by CORS. See server.js for why the fallback path has a caveat around
+// cookies.
+async function fetchPerpl(directUrl, proxyPath, body) {
+  try {
+    const r = await fetch(directUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      credentials: 'include',
+    });
+    if (!r.ok) throw new Error(`direct call returned ${r.status}`);
+    return { data: await r.json(), viaProxy: false };
+  } catch (err) {
+    console.warn(`Direct call to ${directUrl} failed (${err.message}) — falling back to proxy.`);
+    const r = await fetch(proxyPath, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`proxy call returned ${r.status}`);
+    return { data: await r.json(), viaProxy: true };
+  }
+}
+
+async function signAndAuthenticate(address) {
+  state.step = 'authenticating';
+  state.error = null;
+  render();
+
+  try {
+    const cfg = await fetch('/api/config').then((r) => r.json());
+
+    const { data: payload } = await fetchPerpl(
+      `${cfg.perplApiUrl}/v1/auth/payload`,
+      '/api/perpl-proxy/auth/payload',
+      { chain_id: cfg.chainId, address }
+    );
+
+    const signature = await window.ethereum.request({
+      method: 'personal_sign',
+      params: [payload.message, address],
+    });
+
+    // The connect step always goes through our own server now — it needs
+    // to hold the resulting session cookie server-side for the WebSocket
+    // relay to use. This only ever sees the completed signature, never
+    // the private key, and can't move funds or sign anything further.
+    const sessionRes = await fetch('/api/perpl-session/complete-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        address,
+        message: payload.message,
+        nonce: payload.nonce,
+        issued_at: payload.issued_at,
+        mac: payload.mac,
+        signature,
+      }),
+    });
+    if (!sessionRes.ok) {
+      const errBody = await sessionRes.json().catch(() => ({}));
+      throw new Error(errBody.error || `session setup failed: ${sessionRes.status}`);
+    }
+    const { sessionId, nonce } = await sessionRes.json();
+
+    sessionStorage.setItem('perplSessionId', sessionId);
+    sessionStorage.setItem('perplAuthNonce', nonce);
+    state.step = 'success';
+    render();
+  } catch (err) {
+    state.step = 'ready-to-sign';
+    state.error = err.code === 4001 ? 'Signature request was rejected.' : (err.message || 'Authentication failed.');
+    render();
+  }
+}
+
+// Reflect external wallet account/network changes if the extension supports it
+if (window.ethereum?.on) {
+  window.ethereum.on('accountsChanged', () => reset());
+}
+
+render();
+// ═══════════════════════════════════════════════════════════════════
+//  TRADING ENGINE — ported from the Node bot, adapted for the browser.
+//  Signing only happens once (SIWE, already done above) — order
+//  placement/cancellation is just authenticated JSON over the WS
+//  connection, so this never prompts the wallet again after connect.
+// ═══════════════════════════════════════════════════════════════════
+
+const MT = {
+  Ping: 1, Pong: 2, StatusResponse: 3, AuthSignIn: 4,
+  SubscriptionRequest: 5, SubscriptionResponse: 6,
+  MarketStateUpdate: 9,
+  L2BookSnapshot: 15, L2BookUpdate: 16,
+  WalletSnapshot: 19, WalletUpdate: 20, AccountUpdate: 21,
+  OrderRequest: 22, OrdersSnapshot: 23, OrdersUpdate: 24,
+  FillsUpdate: 25, PositionsSnapshot: 26, PositionsUpdate: 27,
+  Heartbeat: 100,
+};
+const ORDER_TYPE = { OpenLong: 1, OpenShort: 2, CloseLong: 3, CloseShort: 4, Cancel: 5 };
+const FLAG = { GTC: 0, PostOnly: 1, FOK: 2, IOC: 4 };
+const AUSD_DECIMALS = 6; // confirmed live against a real account balance in the Node bot
+
+const scaleN = (human, decimals) => Math.round(human * 10 ** decimals);
+const unscaleN = (scaled, decimals) => scaled / 10 ** decimals;
+const PENDING_TIMEOUT_MS = 6000;
+const INSTANT_CLOSE_TICKS_THROUGH = 2;
+const STALE_WS_MS = 20000;
+
+let dashboardCfg = null;
+
+const bot = {
+  cfg: null,
+  wsMd: null, wsTrade: null,
+  lastMdMessageAt: 0, lastTradingMessageAt: 0,
+  market: null, currentBlock: 0, mid: null,
+  book: { bid: new Map(), ask: new Map() },
+  accountId: null, rq: 0, tradingLastSn: null,
+  orders: { bid: null, ask: null },
+  position: { side: 0, size: 0 },
+  paused: false, running: false,
+  pendingCloseRq: null, pendingCloseLb: null,
+  lastActivityAt: Date.now(),
+  startTime: null,
+  startingBalance: null, currentBalance: null,
+  totalVolumeUsd: 0, totalFeesUsd: 0,
+  trades: [], logs: [],
+  timers: {},
+};
+
+function botLog(msg, kind = '') {
+  console.log(`[bot] ${msg}`);
+  bot.logs.push({ time: new Date().toLocaleTimeString(), msg, kind });
+  if (bot.logs.length > 200) bot.logs.shift();
+  renderLive();
+}
+
+function nextRq() { bot.rq += 1; return bot.rq; }
+function cryptoRandomId() { return `${Date.now()}-${Math.random().toString(36).slice(2)}`; }
+function computeLb() {
+  const cap = bot.market?.order_ttl_blocks ?? 20;
+  return bot.currentBlock + Math.min(20, cap);
+}
+function bestBidScaled() { return bot.book.bid.size ? Math.max(...bot.book.bid.keys()) : null; }
+function bestAskScaled() { return bot.book.ask.size ? Math.min(...bot.book.ask.keys()) : null; }
+
+// Points at THIS server's relay, not Perpl directly — same-origin to the
+// page, so no cross-origin WebSocket questions can arise. This server
+// makes the actual Perpl connection itself, the same way the reference
+// Node bot does.
+function relayUrlFor(path) {
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${proto}//${window.location.host}${path}`;
+}
+
+// ── REST ──────────────────────────────────────────────────────────
+async function fetchContext() {
+  try {
+    const res = await fetch(`${dashboardCfg.perplApiUrl}/v1/pub/context`);
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    botLog(`direct context fetch failed (${err.message}) — using server proxy`, 'warn');
+    const res = await fetch('/api/perpl-proxy/context');
+    if (!res.ok) throw new Error(`proxy context fetch failed: ${res.status}`);
+    return await res.json();
+  }
+}
+
+async function fetchMarket(marketId) {
+  const ctx = await fetchContext();
+  const market = ctx.markets.find((m) => m.id === marketId);
+  if (!market) {
+    const available = ctx.markets.map((m) => `${m.id}=${m.symbol || ''}`).join(', ');
+    throw new Error(`market ${marketId} not found. Live markets: ${available}`);
+  }
+  return market;
+}
+
+// ── Market data WS ───────────────────────────────────────────────
+function connectMarketData() {
+  const ws = new WebSocket(relayUrlFor('/relay/market-data'));
+  bot.wsMd = ws;
+
+  ws.onopen = () => {
+    botLog('market-data connected', 'ok');
+    ws.send(JSON.stringify({
+      mt: MT.SubscriptionRequest,
+      subs: [
+        { stream: `heartbeat@${bot.cfg.chainId}`, subscribe: true },
+        { stream: `market-state@${bot.cfg.chainId}`, subscribe: true },
+        { stream: `order-book@${bot.cfg.marketId}`, subscribe: true },
+      ],
+    }));
+    renderLive();
+  };
+
+  ws.onmessage = (event) => {
+    bot.lastMdMessageAt = Date.now();
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.mt === MT.Heartbeat) {
+        if (typeof msg.h === 'number') bot.currentBlock = msg.h;
+        return;
+      }
+      if (msg.mt === MT.MarketStateUpdate) {
+        const s = msg.d?.[bot.cfg.marketId];
+        if (s && typeof s.mid === 'number') {
+          bot.mid = unscaleN(s.mid, bot.market.config.price_decimals);
+          maybeTick('market move');
+        }
+        return;
+      }
+      if (msg.mt === MT.L2BookSnapshot || msg.mt === MT.L2BookUpdate) {
+        if (msg.mt === MT.L2BookSnapshot) { bot.book.bid.clear(); bot.book.ask.clear(); }
+        for (const lvl of msg.bid || []) { if (lvl.o === 0) bot.book.bid.delete(lvl.p); else bot.book.bid.set(lvl.p, lvl.s); }
+        for (const lvl of msg.ask || []) { if (lvl.o === 0) bot.book.ask.delete(lvl.p); else bot.book.ask.set(lvl.p, lvl.s); }
+        return;
+      }
+    } catch (err) {
+      botLog(`market-data message error (ignored): ${err.message}`, 'warn');
+    }
+  };
+
+  ws.onclose = () => {
+    if (!bot.running) return;
+    botLog('market-data ws closed, reconnecting…', 'warn');
+    renderLive();
+    setTimeout(() => { if (bot.running) connectMarketData(); }, 2000);
+  };
+
+  bot.timers.mdPing = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ mt: MT.Ping, t: Date.now() }));
+  }, 30000);
+}
+
+// ── Trading WS ────────────────────────────────────────────────────
+function sendTrade(payload) {
+  if (bot.wsTrade?.readyState !== WebSocket.OPEN) {
+    botLog('trading ws not open — dropping request, will resync on reconnect', 'warn');
+    return false;
+  }
+  try { bot.wsTrade.send(JSON.stringify(payload)); return true; }
+  catch (err) { botLog(`trading ws send failed: ${err.message}`, 'err'); return false; }
+}
+
+function connectTrading() {
+  const sessionId = sessionStorage.getItem('perplSessionId');
+  const ws = new WebSocket(relayUrlFor(`/relay/trading?sessionId=${sessionId}`));
+  bot.wsTrade = ws;
+
+  ws.onopen = () => {
+    const nonce = sessionStorage.getItem('perplAuthNonce');
+    ws.send(JSON.stringify({ mt: MT.AuthSignIn, chain_id: bot.cfg.chainId, nonce, ses: cryptoRandomId() }));
+  };
+
+  ws.onmessage = (event) => {
+    bot.lastTradingMessageAt = Date.now();
+    try {
+      const msg = JSON.parse(event.data);
+      switch (msg.mt) {
+        case MT.WalletSnapshot: {
+          const acct = msg.as?.[0];
+          if (!acct) {
+            botLog('No Exchange account found for this wallet — deposit via the Perpl app (\u201cDeposit to Enable Trading\u201d), then restart the bot.', 'err');
+            stopBot();
+            return;
+          }
+          bot.accountId = acct.id;
+          bot.rq = acct.lfr || 0;
+          bot.tradingLastSn = msg.sn;
+          bot.currentBalance = Number(acct.b) / 10 ** AUSD_DECIMALS;
+          if (bot.startingBalance == null) bot.startingBalance = bot.currentBalance;
+          botLog(`trading authenticated — account ${acct.id}, balance ${bot.currentBalance.toFixed(2)} AUSD`, 'ok');
+          break;
+        }
+        case MT.StatusResponse: {
+          if (msg.status?.code && msg.status.code !== 200) {
+            botLog(`order request rejected: ${msg.status.code} ${msg.status.error}`, 'err');
+            for (const side of ['bid', 'ask']) if (bot.orders[side]?.oid == null) bot.orders[side] = null;
+          }
+          break;
+        }
+        case MT.AccountUpdate: {
+          if (msg.id === bot.accountId) {
+            bot.rq = Math.max(bot.rq, msg.lfr || 0);
+            if (msg.b != null) bot.currentBalance = Number(msg.b) / 10 ** AUSD_DECIMALS;
+          }
+          break;
+        }
+        case MT.OrdersSnapshot:
+        case MT.OrdersUpdate: {
+          for (const o of msg.d || []) trackOrder(o);
+          break;
+        }
+        case MT.FillsUpdate: {
+          for (const f of msg.d || []) trackFill(f);
+          break;
+        }
+        case MT.PositionsSnapshot:
+        case MT.PositionsUpdate: {
+          for (const p of msg.d || []) {
+            if (p.mkt === bot.cfg.marketId) {
+              bot.position = { side: p.st === 1 ? p.sd : 0, size: p.st === 1 ? p.s : 0 };
+              if (bot.position.side === 0) { bot.pendingCloseRq = null; bot.pendingCloseLb = null; }
+              else triggerInstantClose();
+            }
+          }
+          break;
+        }
+        case MT.Heartbeat: {
+          if (bot.tradingLastSn != null && msg.sn !== bot.tradingLastSn + 1) {
+            botLog('trading ws sequence gap — reconnecting', 'warn');
+            ws.close();
+            return;
+          }
+          bot.tradingLastSn = msg.sn;
+          if (typeof msg.h === 'number') bot.currentBlock = msg.h;
+          break;
+        }
+        default: break;
+      }
+      renderLive();
+    } catch (err) {
+      botLog(`trading message error (ignored): ${err.message}`, 'warn');
+    }
+  };
+
+  ws.onclose = (event) => {
+    if (!bot.running) return;
+    botLog(`trading ws closed (${event.code}), reconnecting…`, 'warn');
+    renderLive();
+    setTimeout(() => { if (bot.running) connectTrading(); }, 2000);
+  };
+
+  bot.timers.tradePing = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ mt: MT.Ping, t: Date.now() }));
+  }, 30000);
+}
+
+function trackOrder(o) {
+  if (bot.pendingCloseRq != null && o.rq === bot.pendingCloseRq) {
+    const isTerminal = o.r || [4, 5, 6, 7].includes(o.st);
+    botLog(
+      `instant-close response: rq=${o.rq} st=${o.st} fs=${o.fs}/${o.os}` + (o.st === 7 ? ` sr=${o.sr}` : ''),
+      o.st === 7 ? 'err' : (o.fs > 0 ? 'ok' : 'warn')
+    );
+    if (isTerminal) { bot.pendingCloseRq = null; bot.pendingCloseLb = null; }
+  }
+
+  const side = bot.orders.bid?.rq === o.rq || bot.orders.bid?.oid === o.oid ? 'bid'
+    : bot.orders.ask?.rq === o.rq || bot.orders.ask?.oid === o.oid ? 'ask'
+    : null;
+  if (!side) return;
+
+  if (o.fs > 0) bot.lastActivityAt = Date.now();
+
+  if (o.r || [5, 6, 7].includes(o.st)) {
+    if (o.st === 7) botLog(`order rq=${o.rq} (${side}) rejected: sr=${o.sr}`, 'err');
+    bot.orders[side] = null;
+  } else {
+    const wasPending = bot.orders[side]?.oid == null;
+    bot.orders[side] = {
+      rq: o.rq, oid: o.oid, price: o.p, size: o.os,
+      type: bot.orders[side]?.type, status: o.st, sentAt: bot.orders[side]?.sentAt,
+    };
+    if (wasPending) botLog(`order confirmed: oid=${o.oid} (${side}) @ ${o.p}`, 'ok');
+  }
+}
+
+function trackFill(f) {
+  if (f.mkt !== bot.cfg.marketId || !bot.market) return;
+  const { price_decimals: pd, size_decimals: sd } = bot.market.config;
+  const price = unscaleN(f.p ?? 0, pd);
+  const size = unscaleN(f.s, sd);
+  const notional = price * size;
+  const side = (f.t === ORDER_TYPE.OpenLong || f.t === ORDER_TYPE.CloseShort) ? 'buy' : 'sell';
+  const liquidity = f.l === 1 ? 'maker' : f.l === 2 ? 'taker' : '—';
+  const fee = Number(f.f || 0) / 10 ** AUSD_DECIMALS;
+  bot.lastActivityAt = Date.now();
+  bot.totalVolumeUsd += notional;
+  bot.totalFeesUsd += fee;
+  bot.trades.push({ time: f.at?.t || Date.now(), side, price, size, notional, fee, liquidity });
+  if (bot.trades.length > 100) bot.trades.shift();
+  botLog(`filled: ${side} ${size.toFixed(sd)} @ $${price.toFixed(pd)} (${liquidity}, fee ${fee.toFixed(4)})`, 'ok');
+}
+
+function evaluateSide(side, type, desiredPriceHuman, sizeHuman, pd, sd) {
+  if (sizeHuman <= 0) return cancelSideIfOpen(side);
+  const desiredScaled = scaleN(desiredPriceHuman, pd);
+  const existing = bot.orders[side];
+
+  if (existing) {
+    if (existing.oid == null) {
+      if (Date.now() - existing.sentAt > PENDING_TIMEOUT_MS) {
+        botLog(`order rq=${existing.rq} (${side}) never confirmed after ${PENDING_TIMEOUT_MS}ms — retrying`, 'warn');
+        bot.orders[side] = null;
+      } else {
+        return;
+      }
+    } else {
+      const driftBps = Math.abs(existing.price - desiredScaled) / desiredScaled * 10000;
+      const sameType = existing.type === type;
+      if (driftBps < bot.cfg.requoteBps && sameType) return;
+      cancelOrder(side, existing.oid);
+      return;
+    }
+  }
+  placeOrder(side, type, desiredScaled, scaleN(sizeHuman, sd));
+}
+
+function placeOrder(side, type, priceScaled, sizeScaled) {
+  const req = {
+    mt: MT.OrderRequest, rq: nextRq(), mkt: bot.cfg.marketId, acc: bot.accountId,
+    t: type, p: priceScaled, s: sizeScaled, fl: FLAG.PostOnly, lv: bot.cfg.leverage * 100, lb: computeLb(),
+  };
+  if (!sendTrade(req)) return;
+  bot.orders[side] = { rq: req.rq, oid: null, price: priceScaled, size: sizeScaled, type, status: 1, sentAt: Date.now() };
+}
+
+function cancelOrder(side, oid) {
+  if (oid == null) return;
+  sendTrade({
+    mt: MT.OrderRequest, rq: nextRq(), mkt: bot.cfg.marketId, acc: bot.accountId,
+    oid, t: ORDER_TYPE.Cancel, s: 0, fl: 0, lv: 0, lb: computeLb(),
+  });
+}
+
+function cancelSideIfOpen(side) {
+  const existing = bot.orders[side];
+  if (existing) cancelOrder(side, existing.oid);
+}
+
+function triggerInstantClose() {
+  if (!bot.mid || !bot.market) return;
+  if (bot.pendingCloseRq != null) {
+    const expired = bot.pendingCloseLb != null && bot.currentBlock >= bot.pendingCloseLb;
+    if (!expired) return;
+    botLog(`instant-close rq=${bot.pendingCloseRq} expired with no response — retrying`, 'warn');
+    bot.pendingCloseRq = null; bot.pendingCloseLb = null;
+  }
+  cancelSideIfOpen('bid'); cancelSideIfOpen('ask');
+
+  const { price_decimals: pd } = bot.market.config;
+  const isLong = bot.position.side === 1;
+  const type = isLong ? ORDER_TYPE.CloseLong : ORDER_TYPE.CloseShort;
+
+  let priceScaled, usedBook = false;
+  if (isLong) {
+    const bb = bestBidScaled();
+    if (bb != null) { priceScaled = bb - INSTANT_CLOSE_TICKS_THROUGH; usedBook = true; }
+  } else {
+    const ba = bestAskScaled();
+    if (ba != null) { priceScaled = ba + INSTANT_CLOSE_TICKS_THROUGH; usedBook = true; }
+  }
+  if (!usedBook) {
+    const slip = bot.mid * (15 / 10000);
+    priceScaled = scaleN(isLong ? bot.mid - slip : bot.mid + slip, pd);
+  }
+
+  const closeRq = nextRq();
+  const closeLb = computeLb();
+  const sent = sendTrade({
+    mt: MT.OrderRequest, rq: closeRq, mkt: bot.cfg.marketId, acc: bot.accountId,
+    t: type, p: priceScaled, s: bot.position.size, fl: FLAG.IOC, lv: bot.cfg.leverage * 100, lb: closeLb,
+  });
+  if (!sent) return;
+  bot.pendingCloseRq = closeRq; bot.pendingCloseLb = closeLb;
+  botLog(`instant close: ${isLong ? 'selling' : 'buying'} full position (IOC${usedBook ? ', book-priced' : ', fallback'})`, 'warn');
+}
+
+// ── Quoting loop ──────────────────────────────────────────────────
+let lastTickTs = 0;
+function maybeTick(reason) {
+  const now = Date.now();
+  if (now - lastTickTs < 500) return;
+  if (!bot.mid || !bot.accountId || !bot.currentBlock) return;
+  lastTickTs = now;
+  tick(reason);
+}
+
+function tick(reason) {
+  if (!bot.mid || !bot.accountId || !bot.currentBlock || !bot.market) return;
+  const { price_decimals: pd, size_decimals: sd } = bot.market.config;
+  const mid = bot.mid;
+
+  if (bot.position.side !== 0) {
+    cancelSideIfOpen('bid'); cancelSideIfOpen('ask');
+    triggerInstantClose();
+    renderLive();
+    return;
+  }
+  if (bot.paused) { renderLive(); return; }
+
+  const minTick = 10 ** -pd;
+  const halfSpread = Math.max(mid * (bot.cfg.spreadBps / 10000), minTick);
+  const sizeBase = bot.cfg.orderSizeUsd / mid;
+  let bidPxHuman = mid - halfSpread;
+  let askPxHuman = mid + halfSpread;
+
+  if (bot.orders.ask?.oid != null) {
+    const restingAskHuman = unscaleN(bot.orders.ask.price, pd);
+    if (bidPxHuman >= restingAskHuman) bidPxHuman = restingAskHuman - minTick;
+  }
+  if (bot.orders.bid?.oid != null) {
+    const restingBidHuman = unscaleN(bot.orders.bid.price, pd);
+    if (askPxHuman <= restingBidHuman) askPxHuman = restingBidHuman + minTick;
+  }
+
+  evaluateSide('bid', ORDER_TYPE.OpenLong, bidPxHuman, sizeBase, pd, sd);
+  evaluateSide('ask', ORDER_TYPE.OpenShort, askPxHuman, sizeBase, pd, sd);
+  renderLive();
+}
+
+// ── Watchdogs ─────────────────────────────────────────────────────
+function startWatchdogs() {
+  bot.timers.staleWatch = setInterval(() => {
+    const now = Date.now();
+    if (bot.wsMd?.readyState === WebSocket.OPEN && now - bot.lastMdMessageAt > STALE_WS_MS) {
+      botLog('market-data silent — reconnecting', 'warn');
+      bot.wsMd.close();
+    }
+    if (bot.wsTrade?.readyState === WebSocket.OPEN && now - bot.lastTradingMessageAt > STALE_WS_MS) {
+      botLog('trading ws silent — reconnecting', 'warn');
+      bot.wsTrade.close();
+    }
+  }, 10000);
+
+  (function scheduleRefresh() {
+    bot.timers.refresh = setTimeout(() => { tick('refresh'); scheduleRefresh(); }, bot.cfg.refreshMs);
+  })();
+}
+
+function stopBot() {
+  bot.running = false;
+  cancelSideIfOpen('bid'); cancelSideIfOpen('ask');
+  Object.values(bot.timers).forEach((t) => { clearInterval(t); clearTimeout(t); });
+  bot.wsMd?.close(); bot.wsTrade?.close();
+  botLog('bot stopped', 'warn');
+  document.getElementById('setupPanel').style.display = 'block';
+}
+
+async function startBot() {
+  bot.startTime = Date.now();
+  bot.cfg = {
+    perplApiUrl: dashboardCfg.perplApiUrl,
+    chainId: dashboardCfg.chainId,
+    marketId: Number(document.getElementById('cfgMarketId').value),
+    spreadBps: Number(document.getElementById('cfgSpreadBps').value),
+    orderSizeUsd: Number(document.getElementById('cfgOrderSizeUsd').value),
+    requoteBps: Number(document.getElementById('cfgRequoteBps').value),
+    refreshMs: Number(document.getElementById('cfgRefreshMs').value),
+    leverage: Number(document.getElementById('cfgLeverage').value),
+  };
+
+  document.getElementById('setupPanel').style.display = 'none';
+  document.getElementById('liveArea').style.display = 'block';
+  botLog(`starting bot on market ${bot.cfg.marketId}…`);
+
+  try {
+    bot.market = await fetchMarket(bot.cfg.marketId);
+    botLog(
+      `market ${bot.market.symbol || bot.cfg.marketId} — price_decimals=${bot.market.config.price_decimals} ` +
+      `size_decimals=${bot.market.config.size_decimals} order_ttl_blocks=${bot.market.order_ttl_blocks}`,
+      'ok'
+    );
+  } catch (err) {
+    botLog(`failed to load market: ${err.message}`, 'err');
+    document.getElementById('setupPanel').style.display = 'block';
+    return;
+  }
+
+  bot.running = true;
+  connectMarketData();
+  connectTrading();
+  startWatchdogs();
+  renderLive();
+}
+
+function togglePause() {
+  bot.paused = !bot.paused;
+  if (bot.paused) { cancelSideIfOpen('bid'); cancelSideIfOpen('ask'); }
+  botLog(bot.paused ? 'paused' : 'resumed', 'warn');
+  renderLive();
+}
+
+// ── Dashboard rendering ──────────────────────────────────────────
+function renderLogHtml() {
+  return bot.logs.slice().reverse().map((l) => `<div class="${l.kind}">[${l.time}] ${l.msg}</div>`).join('');
+}
+
+function renderLive() {
+  const el = document.getElementById('liveArea');
+  if (!el || el.style.display === 'none') return;
+
+  if (!bot.market) {
+    el.innerHTML = `
+      <div class="status-row"><div class="spinner"></div> Loading market…</div>
+      <div class="panel-block"><h3>Log</h3><div class="log-box">${renderLogHtml()}</div></div>
+    `;
+    return;
+  }
+
+  const pd = bot.market.config.price_decimals;
+  const sd = bot.market.config.size_decimals;
+  const posLabel = bot.position.side === 1 ? 'LONG' : bot.position.side === 2 ? 'SHORT' : 'flat';
+  const posClass = bot.position.side === 1 ? 'pos' : bot.position.side === 2 ? 'neg' : '';
+  const sinceStart = (bot.currentBalance != null && bot.startingBalance != null) ? bot.currentBalance - bot.startingBalance : null;
+  const mdConnected = bot.wsMd?.readyState === WebSocket.OPEN;
+  const tradeConnected = bot.wsTrade?.readyState === WebSocket.OPEN;
+
+  // Session-rate projections. Held back until there's at least a minute
+  // of runtime and some real volume, same reasoning as the Node bot: a
+  // projection off a few seconds of data is just noise, not a signal.
+  const elapsedSec = bot.startTime ? (Date.now() - bot.startTime) / 1000 : 0;
+  const canProject = elapsedSec >= 60 && bot.totalVolumeUsd > 0;
+  // CPM uses the same ground-truth balance delta as "Since Start" — not
+  // an independently-tracked PnL sum, which drifted from the real balance
+  // change in testing on the Node bot. Same sign convention as PnL
+  // everywhere else: negative = losing money at this rate, positive = profit.
+  const cpmPerMillion = (canProject && sinceStart != null) ? (sinceStart / bot.totalVolumeUsd) * 1_000_000 : null;
+  const estVolume24h = canProject ? (bot.totalVolumeUsd / elapsedSec) * 86400 : null;
+  const estFees24h = canProject ? (bot.totalFeesUsd / elapsedSec) * 86400 : null;
+
+  el.innerHTML = `
+    <div class="controls-row">
+      <div class="live-dot ${mdConnected && tradeConnected ? 'live' : ''}"></div>
+      <span style="font-size:12px;color:var(--muted);">${mdConnected && tradeConnected ? 'Connected' : 'Connecting…'}${bot.paused ? ' · Paused' : ''}</span>
+      <div style="flex:1;"></div>
+      <button class="btn small secondary" id="pauseBtnLive">${bot.paused ? 'Resume' : 'Pause'}</button>
+      <button class="btn small danger" id="stopBtnLive">Stop</button>
+    </div>
+
+    <div class="cards">
+      <div class="stat-card"><div class="label">Starting Balance</div><div class="value mono">${bot.startingBalance != null ? bot.startingBalance.toFixed(2) : '—'}</div></div>
+      <div class="stat-card"><div class="label">Current Balance</div><div class="value mono">${bot.currentBalance != null ? bot.currentBalance.toFixed(2) : '—'}</div></div>
+      <div class="stat-card"><div class="label">Since Start</div><div class="value mono ${sinceStart > 0 ? 'pos' : sinceStart < 0 ? 'neg' : ''}">${sinceStart != null ? (sinceStart >= 0 ? '+' : '') + sinceStart.toFixed(2) : '—'}</div></div>
+      <div class="stat-card"><div class="label">Position</div><div class="value mono ${posClass}">${posLabel}</div></div>
+      <div class="stat-card"><div class="label">Mid Price</div><div class="value mono">${bot.mid != null ? '$' + bot.mid.toFixed(pd) : '—'}</div></div>
+      <div class="stat-card">
+        <div class="label">CPM (Cost / $1M)</div>
+        <div class="value mono ${cpmPerMillion > 0 ? 'pos' : cpmPerMillion < 0 ? 'neg' : ''}">${cpmPerMillion != null ? (cpmPerMillion >= 0 ? '+' : '-') + '$' + Math.abs(cpmPerMillion).toFixed(2) : '—'}</div>
+        <div class="sub">${cpmPerMillion == null ? 'collecting data' : cpmPerMillion < 0 ? 'this session, projected' : 'net profit while printing volume'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Est. Volume / 24h</div>
+        <div class="value mono">${estVolume24h != null ? '$' + estVolume24h.toLocaleString(undefined, {maximumFractionDigits: 0}) : '—'}</div>
+        <div class="sub">${estVolume24h == null ? 'collecting data' : 'projected at current rate'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Est. Fees / 24h</div>
+        <div class="value mono">${estFees24h != null ? '$' + estFees24h.toFixed(2) : '—'}</div>
+        <div class="sub">${estFees24h == null ? 'collecting data' : 'projected at current rate'}</div>
+      </div>
+    </div>
+
+    <div class="orders-row">
+      <div class="order-box bid"><div class="side">Bid</div><div class="px mono">${bot.orders.bid?.oid != null ? '$' + unscaleN(bot.orders.bid.price, pd).toFixed(pd) : '—'}</div></div>
+      <div class="order-box ask"><div class="side">Ask</div><div class="px mono">${bot.orders.ask?.oid != null ? '$' + unscaleN(bot.orders.ask.price, pd).toFixed(pd) : '—'}</div></div>
+    </div>
+
+    <div class="panel-block">
+      <h3>Recent Trades</h3>
+      ${bot.trades.length === 0 ? '<div style="color:var(--muted);font-size:13px;">No fills yet.</div>' : `
+        <table class="trades">
+          <thead><tr><th>Time</th><th>Side</th><th>Price</th><th>Size</th><th>Notional</th><th>Liq</th></tr></thead>
+          <tbody>
+            ${bot.trades.slice().reverse().slice(0, 15).map((t) => `
+              <tr>
+                <td class="mono">${new Date(t.time).toLocaleTimeString()}</td>
+                <td class="${t.side === 'buy' ? 'side-buy' : 'side-sell'}">${t.side.toUpperCase()}</td>
+                <td class="mono">$${t.price.toFixed(pd)}</td>
+                <td class="mono">${t.size.toFixed(sd)}</td>
+                <td class="mono">$${t.notional.toFixed(2)}</td>
+                <td style="color:var(--muted);font-size:11px;">${t.liquidity}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `}
+    </div>
+
+    <div class="panel-block">
+      <h3>Log</h3>
+      <div class="log-box">${renderLogHtml()}</div>
+    </div>
+  `;
+
+  document.getElementById('pauseBtnLive').addEventListener('click', togglePause);
+  document.getElementById('stopBtnLive').addEventListener('click', stopBot);
+}
+
+function renderSetupHtml() {
+  return `
+    <div class="dash-header">
+      <div class="brand"><div class="dot"></div><h1>Perpl Market Maker</h1></div>
+      <div class="meta"><span class="mono">${short(state.address)}</span></div>
+    </div>
+    <div class="setup-panel" id="setupPanel">
+      <h3 style="margin:0 0 16px 0;font-size:15px;color:var(--text);text-transform:none;letter-spacing:0;">Configure &amp; start</h3>
+      <div class="setup-grid">
+        <div class="field"><label>Market ID</label><input type="number" id="cfgMarketId" value="31"></div>
+        <div class="field"><label>Order Size (USD)</label><input type="number" id="cfgOrderSizeUsd" value="50"></div>
+        <div class="field"><label>Spread BPS</label><input type="number" step="0.01" id="cfgSpreadBps" value="0.15"></div>
+        <div class="field"><label>Requote BPS</label><input type="number" step="0.01" id="cfgRequoteBps" value="0.02"></div>
+        <div class="field"><label>Leverage</label><input type="number" id="cfgLeverage" value="5"></div>
+        <div class="field"><label>Refresh (ms)</label><input type="number" id="cfgRefreshMs" value="4000"></div>
+      </div>
+      <button class="btn" id="startBotBtn">Start Bot</button>
+      <div class="footnote" style="margin-top:14px;">Mainnet market IDs (confirmed live): BTC=1, MON=10, ETH=20, SOL=31, HYPE=40, ZEC=50.</div>
+    </div>
+    <div id="liveArea" style="display:none;"></div>
+  `;
+}
+
+async function launchDashboard() {
+  dashboardCfg = await fetch('/api/config').then((r) => r.json());
+  document.getElementById('authCard').style.display = 'none';
+  document.body.classList.add('dashboard-mode');
+  const wrap = document.getElementById('dashWrap');
+  wrap.style.display = 'block';
+  wrap.innerHTML = renderSetupHtml();
+  document.getElementById('startBotBtn').addEventListener('click', startBot);
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if (bot.running && (bot.orders.bid || bot.orders.ask || bot.position.side !== 0)) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+</script>
+</body>
+</html>
