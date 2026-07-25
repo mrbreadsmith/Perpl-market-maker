@@ -90,7 +90,7 @@ app.get('/api/perpl-proxy/context', async (req, res) => {
 // any ability to move funds. The signature submitted here is a
 // completed, one-time proof of identity for this login — not a
 // capability that can be replayed to do anything else.
-const sessions = new Map(); // sessionId -> { address, cookie, createdAt }
+const sessions = new Map(); // sessionId -> { address, cookie, nonce, createdAt }
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h — generous for a dev/test window
 
 function pruneSessions() {
@@ -124,9 +124,61 @@ app.post('/api/perpl-session/complete-auth', async (req, res) => {
 
     pruneSessions();
     const sessionId = crypto.randomBytes(16).toString('hex');
-    sessions.set(sessionId, { address: address.toLowerCase(), cookie, createdAt: Date.now() });
+    sessions.set(sessionId, { address: address.toLowerCase(), cookie, nonce: authResult.nonce, createdAt: Date.now() });
 
     res.json({ sessionId, nonce: authResult.nonce });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Lifetime trading volume (all pairs, all time) for the "Total Volume"
+// card. Requires the session cookie the same way the trading WebSocket
+// does — the browser never had this to begin with, so this has to be a
+// server-side call, not something the frontend could do directly even if
+// CORS allowed it. Bounded to a reasonable number of pages so a single
+// request can't hang indefinitely on a very active account; `capped: true`
+// tells the frontend there's more history than what got summed.
+app.get('/api/account-volume', async (req, res) => {
+  const sessionId = req.query.sessionId;
+  const session = sessionId ? sessions.get(sessionId) : null;
+  if (!session) return res.status(403).json({ error: 'invalid session' });
+
+  try {
+    const ctxRes = await fetch(`${PERPL_API_URL}/v1/pub/context`);
+    if (!ctxRes.ok) throw new Error(`context fetch failed: ${ctxRes.status}`);
+    const ctx = await ctxRes.json();
+    const marketMap = new Map(ctx.markets.map((m) => [m.id, m]));
+
+    const authHeaders = {
+      'X-Auth-Nonce': session.nonce,
+      ...(session.cookie ? { Cookie: session.cookie } : {}),
+    };
+
+    let totalUsd = 0;
+    let page;
+    let pages = 0;
+    const MAX_PAGES = 50; // ~5000 fills at count=100 — bounded so this request can't hang forever
+
+    do {
+      const url = new URL(`${PERPL_API_URL}/v1/trading/fills`);
+      if (page) url.searchParams.set('page', page);
+      url.searchParams.set('count', '100');
+      const r = await fetch(url, { headers: authHeaders });
+      if (!r.ok) break;
+      const data = await r.json();
+      for (const f of data.d || []) {
+        const m = marketMap.get(f.mkt);
+        if (!m) continue;
+        const price = (f.p ?? 0) / 10 ** m.config.price_decimals;
+        const size = f.s / 10 ** m.config.size_decimals;
+        totalUsd += price * size;
+      }
+      page = data.np;
+      pages += 1;
+    } while (page && pages < MAX_PAGES);
+
+    res.json({ totalVolumeUsd: totalUsd, capped: Boolean(page) });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }

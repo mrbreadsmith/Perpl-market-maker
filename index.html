@@ -431,6 +431,7 @@ const unscaleN = (scaled, decimals) => scaled / 10 ** decimals;
 const PENDING_TIMEOUT_MS = 6000;
 const INSTANT_CLOSE_TICKS_THROUGH = 2;
 const STALE_WS_MS = 20000;
+const IDLE_RESTART_MS = 300000; // 5 minutes with no trade fills triggers a soft restart
 
 let dashboardCfg = null;
 
@@ -449,6 +450,7 @@ const bot = {
   startTime: null,
   startingBalance: null, currentBalance: null,
   totalVolumeUsd: 0, totalFeesUsd: 0,
+  lifetimeVolumeBase: null, lifetimeVolumeCapped: false,
   trades: [], logs: [],
   timers: {},
 };
@@ -851,9 +853,46 @@ function startWatchdogs() {
     }
   }, 10000);
 
+  // Safety net for a bot that's connected and looks healthy but has
+  // quietly stopped actually getting fills. Skipped while paused, since
+  // no fills happening on purpose isn't a problem to restart over.
+  bot.timers.idleRestart = setInterval(() => {
+    if (bot.paused || !bot.running) return;
+    const idleSec = (Date.now() - bot.lastActivityAt) / 1000;
+    if (idleSec > IDLE_RESTART_MS / 1000) {
+      botLog(`no trade fills in ${Math.round(idleSec)}s (limit ${IDLE_RESTART_MS / 1000}s) — restarting`, 'warn');
+      restartBot();
+    }
+  }, 15000);
+
   (function scheduleRefresh() {
     bot.timers.refresh = setTimeout(() => { tick('refresh'); scheduleRefresh(); }, bot.cfg.refreshMs);
   })();
+}
+
+// Soft restart: tears down and reopens both WebSocket connections with
+// the same config and session (no page reload, no re-signing needed —
+// the session cookie server-side is untouched). Deliberately does NOT
+// reset session-cumulative stats (volume, fees, trades, starting
+// balance) — this is a recovery action within the same session, not the
+// start of a new one.
+async function restartBot() {
+  cancelSideIfOpen('bid'); cancelSideIfOpen('ask');
+  Object.values(bot.timers).forEach((t) => { clearInterval(t); clearTimeout(t); });
+  bot.wsMd?.close(); bot.wsTrade?.close();
+
+  bot.orders = { bid: null, ask: null };
+  bot.position = { side: 0, size: 0 };
+  bot.book.bid.clear(); bot.book.ask.clear();
+  bot.pendingCloseRq = null; bot.pendingCloseLb = null;
+  bot.lastActivityAt = Date.now();
+  bot.mid = null;
+
+  botLog('reconnecting…', 'warn');
+  connectMarketData();
+  connectTrading();
+  startWatchdogs();
+  renderLive();
 }
 
 function stopBot() {
@@ -900,6 +939,20 @@ async function startBot() {
   connectTrading();
   startWatchdogs();
   renderLive();
+
+  // Background, non-blocking — paginating fill history can take a moment
+  // on an active account, so this shouldn't hold up trading starting.
+  const sessionId = sessionStorage.getItem('perplSessionId');
+  fetch(`/api/account-volume?sessionId=${sessionId}`)
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.error) { botLog(`lifetime volume fetch failed: ${data.error}`, 'warn'); return; }
+      bot.lifetimeVolumeBase = data.totalVolumeUsd;
+      bot.lifetimeVolumeCapped = data.capped;
+      botLog(`lifetime volume loaded: $${data.totalVolumeUsd.toFixed(0)}${data.capped ? ' (more history exists beyond what was summed)' : ''}`, 'ok');
+      renderLive();
+    })
+    .catch((err) => botLog(`lifetime volume fetch failed: ${err.message}`, 'warn'));
 }
 
 function togglePause() {
@@ -976,6 +1029,16 @@ function renderLive() {
         <div class="label">Est. Fees / 24h</div>
         <div class="value mono">${estFees24h != null ? '$' + estFees24h.toFixed(2) : '—'}</div>
         <div class="sub">${estFees24h == null ? 'collecting data' : 'projected at current rate'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Session Volume</div>
+        <div class="value mono">$${bot.totalVolumeUsd.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+        <div class="sub">since this run started</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Total Volume</div>
+        <div class="value mono">${bot.lifetimeVolumeBase != null ? '$' + (bot.lifetimeVolumeBase + bot.totalVolumeUsd).toLocaleString(undefined, {maximumFractionDigits: 0}) : '—'}</div>
+        <div class="sub">${bot.lifetimeVolumeBase == null ? 'loading…' : bot.lifetimeVolumeCapped ? 'lifetime, all pairs (may be higher — capped)' : 'lifetime, all pairs'}</div>
       </div>
     </div>
 
