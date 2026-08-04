@@ -26,6 +26,13 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Same "serve this one specific file by name" approach as above — used by
+// the animated background/avatar art, not a blanket static directory.
+app.get('/pfp.jpg', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'pfp.jpg'));
+});
+
 // ── Whitelist ────────────────────────────────────────────────────────
 function loadWhitelist() {
   try {
