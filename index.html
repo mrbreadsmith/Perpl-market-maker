@@ -510,14 +510,14 @@ function applyPairPresetToForm(marketId) {
   const preset = PAIR_PRESETS[marketId];
   const hintEl = document.getElementById('presetHint');
   if (!preset) {
-    if (hintEl) hintEl.textContent = 'No preset for this market — using whatever is currently in the fields below.';
+    if (hintEl) hintEl.textContent = '';
     return;
   }
   document.getElementById('cfgSpreadBps').value = preset.spreadBps;
   document.getElementById('cfgRequoteBps').value = preset.requoteBps;
   document.getElementById('cfgLeverage').value = preset.leverage;
   document.getElementById('cfgRefreshMs').value = preset.refreshMs;
-  if (hintEl) hintEl.textContent = `Applied ${preset.name} preset: spread ${preset.spreadBps}bps, requote ${preset.requoteBps}bps, ${preset.leverage}x leverage, ${preset.refreshMs}ms refresh.`;
+  if (hintEl) hintEl.textContent = `Applied ${preset.name} preset: ${preset.leverage}x leverage.`;
 }
 
 let dashboardCfg = null;
@@ -1208,15 +1208,15 @@ function renderSetupHtml() {
       </div>
       <div class="setup-grid">
         <div class="field"><label>Order Size (USD)</label><input type="number" id="cfgOrderSizeUsd" value="100"></div>
-        <div class="field"><label>Spread BPS</label><input type="number" step="0.01" id="cfgSpreadBps" value="0.15"></div>
-        <div class="field"><label>Requote BPS</label><input type="number" step="0.01" id="cfgRequoteBps" value="0.02"></div>
         <div class="field"><label>Leverage</label><input type="number" id="cfgLeverage" value="5"></div>
-        <div class="field"><label>Refresh (ms)</label><input type="number" id="cfgRefreshMs" value="12000"></div>
       </div>
+      <input type="hidden" id="cfgSpreadBps" value="0.15">
+      <input type="hidden" id="cfgRequoteBps" value="0.02">
+      <input type="hidden" id="cfgRefreshMs" value="12000">
       <input type="hidden" id="cfgMarketId" value="31">
       <div class="footnote" id="presetHint" style="margin-bottom:14px;"></div>
       <button class="btn" id="startBotBtn">Start Bot</button>
-      <div class="footnote" style="margin-top:14px;">Spread/requote/leverage/refresh auto-fill from a preset when one exists for the selected pair — Order Size always stays as you set it.</div>
+      <div class="footnote" style="margin-top:14px;">Leverage auto-fills from a preset when one exists for the selected pair — Order Size always stays as you set it.</div>
     </div>
     <div id="liveArea" style="display:none;"></div>
     <div class="footnote" style="margin-top:24px; text-align:center;">For whitelist access, contact <a href="https://x.com/Mrbreadsmith" target="_blank" rel="noopener">@Mrbreadsmith on X</a> or <a href="https://t.me/Mrbreadsmith" target="_blank" rel="noopener">Telegram</a>.</div>
