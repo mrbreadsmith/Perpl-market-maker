@@ -52,6 +52,14 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// index.html references /pfp.jpg as the avatar image, but nothing served
+// it (no express.static, and this wasn't in the single-file allowlist
+// above). Serve it the same explicit-filename way as index.html.
+app.get('/pfp.jpg', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.sendFile(path.join(__dirname, 'pfp.jpg'));
+});
+
 // ── Whitelist ────────────────────────────────────────────────────────
 function loadWhitelist() {
   try {
