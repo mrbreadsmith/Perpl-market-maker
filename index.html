@@ -549,6 +549,14 @@ function botLog(msg, kind = '') {
   renderLive();
 }
 
+function formatElapsed(sec) {
+  const s = Math.max(0, Math.floor(sec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  return h > 0 ? `${h}h ${m}m ${ss}s` : m > 0 ? `${m}m ${ss}s` : `${ss}s`;
+}
+
 function nextRq() { bot.rq += 1; return bot.rq; }
 function cryptoRandomId() { return `${Date.now()}-${Math.random().toString(36).slice(2)}`; }
 function computeLb() {
@@ -933,6 +941,11 @@ function tick(reason) {
 
 // ── Watchdogs ─────────────────────────────────────────────────────
 function startWatchdogs() {
+  // Re-render once a second purely so "Session Time" ticks live — every
+  // other stat already gets refreshed by its own event (price tick, fill,
+  // etc.), but elapsed time has nothing to react to on its own.
+  bot.timers.elapsedTick = setInterval(() => { if (bot.running) renderLive(); }, 1000);
+
   bot.timers.staleWatch = setInterval(() => {
     const now = Date.now();
     if (bot.wsMd?.readyState === WebSocket.OPEN && now - bot.lastMdMessageAt > STALE_WS_MS) {
@@ -1107,6 +1120,7 @@ function renderLive() {
         <div class="stat-card"><div class="label">Starting Balance</div><div class="value mono">${bot.startingBalance != null ? bot.startingBalance.toFixed(2) : '—'}</div></div>
         <div class="stat-card"><div class="label">Current Balance</div><div class="value mono">${bot.currentBalance != null ? bot.currentBalance.toFixed(2) : '—'}</div></div>
         <div class="stat-card"><div class="label">Since Start</div><div class="value mono ${sinceStart > 0 ? 'pos' : sinceStart < 0 ? 'neg' : ''}">${sinceStart != null ? (sinceStart >= 0 ? '+' : '') + sinceStart.toFixed(2) : '—'}</div></div>
+        <div class="stat-card"><div class="label">Session Time</div><div class="value mono">${formatElapsed(elapsedSec)}</div></div>
       </div>
     </div>
 
