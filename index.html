@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <title>Perpl Market Maker — Connect</title>
+<link rel="icon" type="image/png" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/favicon-180.png">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root {
@@ -22,7 +24,18 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     display: flex; align-items: center; justify-content: center;
+    padding-top: 46px;
   }
+  html { background-color: var(--bg); }
+  .site-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: linear-gradient(90deg, #1e1033, #2a1650);
+    border-bottom: 1px solid rgba(139,92,246,0.4);
+    color: var(--text); font-size: 12.5px; text-align: center;
+    padding: 10px 16px; line-height: 1.4;
+  }
+  .site-banner a { color: #c4b5fd; font-weight: 600; text-decoration: none; }
+  .site-banner a:hover { text-decoration: underline; }
   html { background-color: var(--bg); }
   .bg-photo, .bg-blob, .bg-spark, .bg-grid { position: fixed; pointer-events: none; }
   .bg-photo {
@@ -64,6 +77,8 @@
     animation: floaty 3.2s ease-in-out infinite;
   }
   .brand .avatar.small { width: 22px; height: 22px; }
+  .brand .logo-mark { width: 22px; height: 22px; flex-shrink: 0; }
+  .brand .logo-mark.small { width: 18px; height: 18px; }
   @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 
   h2 { font-size: 20px; font-weight: 600; margin: 0 0 8px 0; }
@@ -228,6 +243,7 @@
 </style>
 </head>
 <body>
+<div class="site-banner">This bot is paused for now — all whitelisted users can trade right now at <a href="https://perpl.breadsbakery.xyz" target="_blank" rel="noopener">perpl.breadsbakery.xyz</a> (0% builder fees today)</div>
 <div class="bg-photo"></div>
 <div class="bg-grid"></div>
 <div class="bg-blob b1"></div>
@@ -236,6 +252,7 @@
 
 <div class="card" id="authCard">
   <div class="brand">
+    <img class="logo-mark" src="assets/logo-mark.png" alt="Bread's Bakery">
     <div class="avatar"></div>
     <div class="dot"></div>
     <h1>Perpl Market Maker</h1>
@@ -263,9 +280,23 @@
 const $content = document.getElementById('content');
 let state = { step: 'idle', address: null, error: null };
 
+// Temporarily paused while builder-code fee tiering gets added to
+// perpl.breadsbakery.xyz — flip back to false to reopen this site.
+const BOT_PAUSED = true;
+
 function short(addr) { return addr.slice(0, 6) + '…' + addr.slice(-4); }
 
 function render() {
+  if (BOT_PAUSED) {
+    $content.innerHTML = `
+      <h2>Paused for now</h2>
+      <p class="sub">This bot is temporarily paused. All whitelisted users can trade right now at
+        <a href="https://perpl.breadsbakery.xyz" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;">perpl.breadsbakery.xyz</a>
+        — 0% builder fees today.</p>
+    `;
+    return;
+  }
+
   if (state.step === 'idle') {
     $content.innerHTML = `
       <h2>Connect to get started</h2>
@@ -1204,7 +1235,7 @@ function renderLive() {
 function renderSetupHtml() {
   return `
     <div class="dash-header">
-      <div class="brand"><div class="avatar small"></div><div class="dot"></div><h1>Perpl Market Maker</h1></div>
+      <div class="brand"><img class="logo-mark small" src="assets/logo-mark.png" alt="Bread's Bakery"><div class="avatar small"></div><div class="dot"></div><h1>Perpl Market Maker</h1></div>
       <div class="meta"><span class="mono">${short(state.address)}</span></div>
     </div>
     <div class="setup-panel" id="setupPanel">
