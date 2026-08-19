@@ -106,4 +106,4 @@ Deployed on [Render](https://render.com) as a Web Service (not a Static Site —
 - What this server can see: your wallet address and an active login session, for as long as your bot is running
 - What this server *cannot* do: withdraw funds, sign anything beyond relaying your browser's own decisions, or act after your session ends
 
-Access is whitelist-gated. For access, contact [@Mrbreadsmith on X](https://x.com/Mrbreadsmith) or Telegram.
+Access is whitelist-gated. For access, contact us on [X](https://x.com/BreadsBakeryxyz) or [Telegram](https://t.me/BreadsBakeryxyz).
